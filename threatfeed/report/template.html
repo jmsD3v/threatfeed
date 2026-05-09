@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ThreatFeed CTI Report — {{ scan_time }}</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #c9d1d9; --muted: #8b949e;
+    --red: #f85149; --orange: #d29922; --yellow: #e3b341;
+    --cyan: #58a6ff; --green: #3fb950; --purple: #bc8cff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+  .page { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 28px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: var(--cyan); }
+  .header .meta { text-align: right; color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 28px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; text-align: center; }
+  .card .num { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+  .card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .card.critical .num { color: var(--red); }
+  .card.high .num { color: var(--orange); }
+  .card.medium .num { color: var(--yellow); }
+  .card.total .num { color: var(--cyan); }
+  .card.sources .num { color: var(--purple); }
+  h2 { font-size: 15px; font-weight: 600; color: var(--cyan); border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 16px; margin-top: 28px; }
+  .ai-summary { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--purple); border-radius: 0 8px 8px 0; padding: 16px 20px; font-size: 13px; line-height: 1.7; margin-bottom: 28px; white-space: pre-wrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: var(--surface); }
+  .sev { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+  .sev-critical { background: rgba(248,81,73,.15); color: var(--red); border: 1px solid var(--red); }
+  .sev-high { background: rgba(210,153,34,.15); color: var(--orange); border: 1px solid var(--orange); }
+  .sev-medium { background: rgba(227,179,65,.15); color: var(--yellow); border: 1px solid var(--yellow); }
+  .sev-low { background: rgba(88,166,255,.15); color: var(--cyan); border: 1px solid var(--cyan); }
+  .sev-info { background: rgba(139,148,158,.1); color: var(--muted); border: 1px solid var(--border); }
+  .tag { display: inline-block; background: rgba(48,54,61,.8); color: var(--muted); border-radius: 3px; font-size: 10px; padding: 1px 5px; margin: 1px 1px; }
+  .src { display: inline-block; background: rgba(63,185,80,.1); color: var(--green); border: 1px solid rgba(63,185,80,.3); border-radius: 3px; font-size: 10px; padding: 1px 5px; margin: 1px; }
+  .ioc-detail { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+  .ioc-header { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+  .ioc-value { font-family: monospace; font-size: 13px; font-weight: 600; }
+  .ioc-body { padding: 12px 16px; }
+  .ioc-ai { background: #0d1117; border-left: 3px solid var(--purple); padding: 8px 12px; font-size: 12px; line-height: 1.6; margin-top: 8px; border-radius: 0 4px 4px 0; }
+  .ioc-recs { margin-top: 6px; }
+  .ioc-recs li { font-size: 11px; color: var(--muted); margin-left: 14px; margin-bottom: 2px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 12px; color: var(--muted); }
+  .grid2 span { color: var(--text); }
+  .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div>
+      <h1>ThreatFeed — CTI Aggregator Report</h1>
+      <div style="margin-top:6px;color:var(--muted);font-size:13px;">
+        Sources: {{ sources_queried|join(', ') }}
+      </div>
+    </div>
+    <div class="meta">
+      <div>Generated: {{ scan_time }}</div>
+      <div>Duration: {{ duration }}</div>
+      <div>IOCs analyzed: {{ summary.total }}</div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card total"><div class="num">{{ summary.total }}</div><div class="label">Total IOCs</div></div>
+    <div class="card critical"><div class="num">{{ summary.critical }}</div><div class="label">Critical</div></div>
+    <div class="card high"><div class="num">{{ summary.high }}</div><div class="label">High</div></div>
+    <div class="card medium"><div class="num">{{ summary.medium }}</div><div class="label">Medium</div></div>
+    <div class="card sources"><div class="num">{{ summary.sources }}</div><div class="label">Sources</div></div>
+    <div class="card total"><div class="num">{{ summary.ips }}</div><div class="label">IPs</div></div>
+    <div class="card total"><div class="num">{{ summary.domains }}</div><div class="label">Domains</div></div>
+    <div class="card total"><div class="num">{{ summary.hashes }}</div><div class="label">Hashes</div></div>
+  </div>
+
+  {% if ai_threat_summary %}
+  <h2>AI Threat Assessment</h2>
+  <div class="ai-summary">{{ ai_threat_summary }}</div>
+  {% endif %}
+
+  <!-- Top critical/high IOCs with detail -->
+  {% set top_iocs = iocs | selectattr('severity', 'in', ['critical', 'high']) | list %}
+  {% if top_iocs %}
+  <h2>Critical & High Severity IOCs ({{ top_iocs|length }})</h2>
+  {% for ioc in top_iocs[:20] %}
+  <div class="ioc-detail">
+    <div class="ioc-header">
+      <span class="ioc-value">{{ ioc.value }}</span>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span class="sev sev-{{ ioc.severity }}">{{ ioc.severity }}</span>
+        <span style="color:var(--muted);font-size:11px;">{{ ioc.type }} &bull; {{ "%.0f%%"|format(ioc.confidence * 100) }} confidence</span>
+      </div>
+    </div>
+    <div class="ioc-body">
+      <div class="grid2">
+        {% if ioc.country %}<div>Country: <span>{{ ioc.country }}</span></div>{% endif %}
+        {% if ioc.org %}<div>Org: <span>{{ ioc.org }}</span></div>{% endif %}
+        {% if ioc.abuse_score is not none %}<div>AbuseIPDB: <span>{{ ioc.abuse_score }}/100</span></div>{% endif %}
+        {% if ioc.vt_positives is not none %}<div>VirusTotal: <span>{{ ioc.vt_positives }}/{{ ioc.vt_total }}</span></div>{% endif %}
+        {% if ioc.malware_families %}<div>Malware: <span>{{ ioc.malware_families[:3]|join(', ') }}</span></div>{% endif %}
+        {% if ioc.threat_categories %}<div>Categories: <span>{{ ioc.threat_categories[:3]|join(', ') }}</span></div>{% endif %}
+      </div>
+      <div style="margin-top:8px;">
+        {% for src in ioc.sources %}<span class="src">{{ src }}</span>{% endfor %}
+        {% for tag in ioc.tags[:8] %}<span class="tag">{{ tag }}</span>{% endfor %}
+      </div>
+      {% if ioc.ai_summary %}
+      <div class="ioc-ai">{{ ioc.ai_summary }}</div>
+      {% endif %}
+      {% if ioc.recommendations %}
+      <div class="ioc-recs"><ul>
+        {% for r in ioc.recommendations %}<li>{{ r }}</li>{% endfor %}
+      </ul></div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <!-- Full IOC table -->
+  <h2>All IOCs ({{ iocs|length }})</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Severity</th>
+        <th>Value</th>
+        <th>Type</th>
+        <th>Sources</th>
+        <th>Categories</th>
+        <th>Country</th>
+        <th>AbuseScore</th>
+        <th>VT</th>
+        <th>Confidence</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for ioc in iocs %}
+    <tr>
+      <td><span class="sev sev-{{ ioc.severity }}">{{ ioc.severity }}</span></td>
+      <td style="font-family:monospace;font-size:12px;">{{ ioc.value }}</td>
+      <td style="color:var(--muted);">{{ ioc.type }}</td>
+      <td>{% for s in ioc.sources %}<span class="src">{{ s }}</span>{% endfor %}</td>
+      <td style="color:var(--muted);">{{ ioc.threat_categories[:2]|join(', ') }}</td>
+      <td style="color:var(--muted);">{{ ioc.country or '-' }}</td>
+      <td style="text-align:center;">{% if ioc.abuse_score is not none %}{{ ioc.abuse_score }}{% else %}-{% endif %}</td>
+      <td style="text-align:center;">{% if ioc.vt_positives is not none %}{{ ioc.vt_positives }}/{{ ioc.vt_total }}{% else %}-{% endif %}</td>
+      <td style="text-align:center;color:var(--muted);">{{ "%.0f%%"|format(ioc.confidence * 100) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    ThreatFeed v0.1.0 &bull; Powered by Gemini AI &bull; Sources: ThreatFox, Shodan InternetDB, AbuseIPDB, VirusTotal, OTX &bull;
+    Copyright &copy; 2025 Desarrollado desde Las Brenas con amor por @jmsDev All rights reserved
+  </div>
+
+</div>
+</body>
+</html>
