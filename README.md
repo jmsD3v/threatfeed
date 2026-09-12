@@ -1,5 +1,7 @@
 # ThreatFeed
 
+![banner](docs/banner.svg)
+
 Agregador de inteligencia de amenazas (D-02) que consulta varias fuentes CTI en paralelo para un mismo IOC (IP, dominio, URL o hash), fusiona los resultados y usa IA (Claude, Gemini u OpenAI, la que tengas configurada) para escribir el análisis en lenguaje natural.
 
 ## Qué hace
