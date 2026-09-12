@@ -1,4 +1,8 @@
-"""Gemini AI enrichment for IOC context, MITRE mapping, and response recommendations."""
+"""AI enrichment for IOC context, MITRE mapping, and response recommendations.
+
+Provider-agnostic: works with Anthropic Claude, Google Gemini, or OpenAI,
+whichever API key is found in the environment (see _detect_provider).
+"""
 
 from __future__ import annotations
 
@@ -9,18 +13,69 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from threatfeed.types.ioc import IOC, ThreatReport
 
+# Priority order when more than one provider's key is set.
+_PROVIDER_ENV_VARS = [
+    ("ANTHROPIC_API_KEY", "anthropic"),
+    ("GEMINI_API_KEY", "gemini"),
+    ("OPENAI_API_KEY", "openai"),
+]
 
-async def _call_gemini(prompt: str, model: str = "gemini-1.5-flash") -> str:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
+
+def _detect_provider() -> tuple[str, str] | None:
+    """Return (provider, api_key) for the first configured provider.
+
+    Priority: Anthropic Claude > Google Gemini > OpenAI.
+    """
+    for env_var, provider in _PROVIDER_ENV_VARS:
+        key = os.getenv(env_var, "").strip()
+        if key:
+            return provider, key
+    return None
+
+
+def _call_anthropic_sync(prompt: str, api_key: str) -> str:
+    import anthropic  # type: ignore[import]
+    client = anthropic.Anthropic(api_key=api_key)
+    response = client.messages.create(
+        model="claude-3-5-haiku-20241022",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return "".join(block.text for block in response.content if hasattr(block, "text")).strip()
+
+
+def _call_gemini_sync(prompt: str, api_key: str, model: str = "gemini-1.5-flash") -> str:
+    import google.generativeai as genai
+    genai.configure(api_key=api_key)
+    gmodel = genai.GenerativeModel(model)
+    response = gmodel.generate_content(prompt)
+    return response.text.strip()
+
+
+def _call_openai_sync(prompt: str, api_key: str) -> str:
+    import openai  # type: ignore[import]
+    client = openai.OpenAI(api_key=api_key)
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return (response.choices[0].message.content or "").strip()
+
+
+async def _call_ai(prompt: str) -> str:
+    """Call whichever AI provider has a configured API key. Returns "" if
+    none configured or on any error — enrichment is always best-effort."""
+    detected = _detect_provider()
+    if not detected:
         return ""
+    provider, api_key = detected
+    loop = asyncio.get_event_loop()
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        gmodel = genai.GenerativeModel(model)
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, lambda: gmodel.generate_content(prompt))
-        return response.text.strip()
+        if provider == "anthropic":
+            return await loop.run_in_executor(None, _call_anthropic_sync, prompt, api_key)
+        if provider == "openai":
+            return await loop.run_in_executor(None, _call_openai_sync, prompt, api_key)
+        return await loop.run_in_executor(None, _call_gemini_sync, prompt, api_key)
     except Exception:
         return ""
 
@@ -57,7 +112,7 @@ RECOMMEND:
 - <rec 2>
 - <rec 3>"""
 
-    response = await _call_gemini(prompt)
+    response = await _call_ai(prompt)
     if not response:
         return
 
@@ -135,6 +190,6 @@ Write a 3-4 sentence executive summary covering:
 
 Be direct and actionable. No fluff."""
 
-    summary = await _call_gemini(prompt)
+    summary = await _call_ai(prompt)
     if summary:
         report.ai_threat_summary = summary

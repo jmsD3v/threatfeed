@@ -127,7 +127,7 @@ def lookup(
     iocs: list[str] = typer.Argument(..., help="IOC values to look up (IP, domain, hash, URL)"),
     ioc_type: Optional[str] = typer.Option(None, "--type", "-t",
                                             help="Force type: ip|domain|url|file_hash"),
-    no_ai: bool = typer.Option(False, "--no-ai", help="Skip Gemini AI enrichment"),
+    no_ai: bool = typer.Option(False, "--no-ai", help="Skip AI enrichment"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Save JSON output"),
     fmt: str = typer.Option("html", "--format", "-f", help="Report format: html|pdf (with -o)"),
 ) -> None:
