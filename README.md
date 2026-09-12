@@ -97,6 +97,6 @@ Proyecto educativo / de portfolio. Las consultas contra feeds públicos (ThreatF
 
 <div align="center">
 
-Copyright © 2025 Desarrollado desde Las Breñas con 💜 por [@jmsDev](https://www.linkedin.com/in/jmsilva83) · All rights reserved
+Copyright © [@jmsDev](https://www.linkedin.com/in/jmsilva83) — Desarrollado desde Las Breñas con 💜 · All rights reserved
 
 </div>
