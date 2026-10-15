@@ -1,2 +1,0 @@
-[console_scripts]
-threatfeed = threatfeed.cli.main:app
